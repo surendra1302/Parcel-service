@@ -42,14 +42,14 @@ pipeline {
             }
         }
 
-        stage('Tagging the Build') {
+       /* stage('Tagging the Build') {
             steps {
               script {
                 shared.tagBuild("v${env.BUILD_NUMBER}", "Post-build tag")
               }
             }
         } 
-      
+      */
         stage('Upload Artifact') {
             steps {
               script {

@@ -42,13 +42,13 @@ pipeline {
             }
         }
 
-        stage('Tagging theBuild') {
-            steps {
-              script {
-                shared.tagBuild()
-              }
-            }
-        }
+       // stage('Tagging theBuild') {
+            //steps {
+              //script {
+            //    shared.tagBuild()
+          //    }
+        //    }
+      //  } 
       
         stage('Upload Artifact') {
             steps {

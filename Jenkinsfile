@@ -1,69 +1,93 @@
-def checkout() {
-    echo 'Checking out code...'
-    checkout scm
-}
+@Library('shared_library@main') _  // Correct syntax
 
-def java() {
-    echo 'Setting up Java 17...'
-    sh 'sudo apt update'
-    sh 'sudo apt install -y openjdk-17-jdk'
-}
+pipeline {
+    agent { label 'slave1' }
 
-def maven() {
-    echo 'Setting up Maven...'
-    sh 'sudo apt install -y maven'
-}
-
-def build() {
-    echo 'Building project with Maven...'
-    sh 'mvn clean package'
-}
-
-def tag(String tagName, String message = 'Build tagging') {
-    if (!tagName?.trim()) {
-        error "Tag name cannot be null or empty"
+    environment {
+        JAVA_HOME = '/usr/lib/jvm/java-17-openjdk-amd64'
+        MAVEN_HOME = '/usr/share/maven'
+        PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${env.PATH}"
     }
 
-    echo "Tagging the build with tag: ${tagName}"
-    
-    sh """
-        git tag -a "${tagName}" -m "${message}"
-        git push origin "${tagName}"
-    """
-}
+    stages {
+        stage('Checkout Code') {
+            steps {
+              script {
+                shared.checkout()
+              }
+            }
+        }
 
+        stage('Set up Java 17') {
+            steps {
+              script {
+               shared.java()
+              }
+            }
+        }
 
-def artifact(String artifactPath) {
-    echo 'Uploading artifact...'
-    archiveArtifacts artifacts: artifactPath, allowEmptyArchive: true
-}
+        stage('Set up Maven') {
+            steps {
+              script {
+               shared.maven()
+              }
+            }
+        }
 
-def run() {
-    echo 'Running Spring Boot application...'
-    sh 'nohup mvn spring-boot:run &'
-    sleep(time: 15, unit: 'SECONDS')
+        stage('Build with Maven') {
+            steps {
+              script {
+                shared.build()
+              }
+            }
+        }
 
-    def publicIp = sh(script: "curl -s https://checkip.amazonaws.com", returnStdout: true).trim()
-    echo "The application is running and accessible at: http://${publicIp}:8080"
-}
+        stage('Tagging theBuild') {
+            steps {
+              script {
+                shared.tag()
+              }
+            }
+        }
+      
+        stage('Upload Artifact') {
+            steps {
+              script {
+                shared.artifact('target/bus-booking-app-1.0-SNAPSHOT.jar')
+              }
+            }
+        }
 
-def validate() {
-    echo 'Validating that the app is running...'
-    def response = sh(script: 'curl --write-out "%{http_code}" --silent --output /dev/null http://localhost:8080', returnStdout: true).trim()
-    if (response == "200") {
-        echo 'The app is running successfully!'
-    } else {
-        echo "The app failed to start. HTTP response code: ${response}"
-        error("The app did not start correctly!")
+        stage('Run Application') {
+            steps {
+              script {
+                shared.run()
+              }
+            }
+        }
+
+        stage('Validate App is Running') {
+            steps {
+              script {
+                shared.validate()
+              }
+            }
+        }
+
+        stage('Gracefully Stop Spring Boot App') {
+            steps {
+              script {
+                shared.stop()
+              }
+            }
+        }
     }
-}
 
-def stop() {
-    echo 'Gracefully stopping the Spring Boot application...'
-    sh 'mvn spring-boot:stop'
-}
-
-def cleanup() {
-    echo 'Cleaning up...'
-    sh 'pkill -f "mvn spring-boot:run" || true'
+    post {
+        always {
+            script {
+            shared.cleanup()
+            }
+        }
+    }
 }
